@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Weather — WeatherAPI</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#60a5fa}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#071020 0%, #0f1724 100%);color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .container{width:100%;max-width:820px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));padding:20px;border-radius:14px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+    header h1{font-size:20px;margin:0}
+    .controls{display:flex;gap:8px;align-items:center}
+    input[type=text]{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:10px 12px;border-radius:8px;color:inherit;outline:none;min-width:200px}
+    button{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#07203a;font-weight:600;cursor:pointer}
+    button:disabled{opacity:.6;cursor:default}
+    .row{display:flex;gap:18px}
+    .main{flex:1;display:flex;gap:18px;align-items:center}
+    .icon{width:120px;height:120px;flex:0 0 120px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:12px;display:flex;align-items:center;justify-content:center}
+    .icon img{max-width:100%;max-height:100%}
+    .details{flex:1}
+    .temp{font-size:44px;font-weight:700;margin:0}
+    .desc{color:var(--muted);margin-top:6px}
+    .meta{display:flex;gap:14px;color:var(--muted);margin-top:12px}
+    .meta div{font-size:14px}
+    .footer{margin-top:16px;color:var(--muted);font-size:13px}
+    .error{background:#3b0b0b;padding:10px;border-radius:8px;color:#ffdede;margin-top:12px}
+    @media (max-width:640px){.row{flex-direction:column}.main{align-items:flex-start}.icon{width:96px;height:96px;flex:0 0 96px}.temp{font-size:36px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card" role="region" aria-label="Weather app">
+      <header>
+        <div style="display:flex;flex-direction:column">
+          <h1>Weather now</h1>
+          <small style="color:var(--muted)">Powered by WeatherAPI</small>
+        </div>
+        <div style="flex:1"></div>
+        <div class="controls">
+          <label for="city" class="sr-only" style="display:none">City</label>
+          <input id="city" type="text" placeholder="Enter city (e.g. London)" value="London" />
+          <button id="get">Get</button>
+        </div>
+      </header>
+
+      <main>
+        <div id="output">
+          <div class="row">
+            <div class="main">
+              <div class="icon" id="icon">
+                <!-- icon img injected -->
+              </div>
+              <div class="details">
+                <p class="temp" id="temp">—</p>
+                <div class="desc" id="desc">Search a city and press Get</div>
+                <div class="meta" id="meta">
+                  <!-- meta items -->
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="footer" id="footer">Tip: try city names like "Mumbai" or "New York".</div>
+        </div>
+        <div id="err" style="display:none" class="error" role="alert"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Replace apiKey below if you want to use your own. You provided an example key in the request URL.
+    const apiKey = '74a2516e3c7f4fa697a171006253007';
+
+    const qs = (s) => document.querySelector(s);
+    const cityInput = qs('#city');
+    const btn = qs('#get');
+    const tempEl = qs('#temp');
+    const descEl = qs('#desc');
+    const metaEl = qs('#meta');
+    const iconEl = qs('#icon');
+    const errEl = qs('#err');
+    const footer = qs('#footer');
+
+    function setLoading(is){
+      btn.disabled = is;
+      btn.textContent = is ? 'Loading...' : 'Get';
+    }
+
+    function showError(msg){
+      errEl.style.display = 'block';
+      errEl.textContent = msg;
+    }
+
+    function clearError(){
+      errEl.style.display = 'none';
+      errEl.textContent = '';
+    }
+
+    function render(data){
+      // data: as returned from WeatherAPI current.json
+      const loc = data.location;
+      const cur = data.current;
+      const condition = cur.condition || {};
+
+      // temperature
+      tempEl.textContent = Math.round(cur.temp_c) + '°C';
+      descEl.textContent = `${condition.text} — ${loc.name}, ${loc.region || loc.country}`;
+
+      // icon (WeatherAPI provides a relative or absolute URL)
+      iconEl.innerHTML = '';
+      const img = document.createElement('img');
+      // ensure we use https if available
+      let iconUrl = condition.icon || '';
+      if(iconUrl && iconUrl.startsWith('//')) iconUrl = 'https:' + iconUrl;
+      img.alt = condition.text || 'weather icon';
+      img.src = iconUrl;
+      iconEl.appendChild(img);
+
+      // meta
+      metaEl.innerHTML = '';
+      const items = [
+        ['Feels like', Math.round(cur.feelslike_c) + '°C'],
+        ['Wind', cur.wind_kph + ' kph'],
+        ['Humidity', cur.humidity + '%'],
+        ['Local time', loc.localtime]
+      ];
+      for (const [k,v] of items){
+        const d = document.createElement('div');
+        d.innerHTML = `<strong style="color:#fff">${k}:</strong> <span style="color:var(--muted)"> ${v}</span>`;
+        metaEl.appendChild(d);
+      }
+
+      footer.textContent = `Last updated: ${new Date().toLocaleString()}`;
+    }
+
+    async function getWeather(city){
+      clearError();
+      setLoading(true);
+      tempEl.textContent = '—';
+      descEl.textContent = 'Fetching...';
+      try{
+        const q = encodeURIComponent(city.trim() || 'London');
+        const url = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${q}&aqi=yes`;
+        const res = await fetch(url);
+        if(!res.ok){
+          // try to parse json error
+          let errText = `HTTP ${res.status}`;
+          try{ const j = await res.json(); if(j && j.error && j.error.message) errText = j.error.message; }catch(e){}
+          throw new Error(errText);
+        }
+        const data = await res.json();
+        render(data);
+      }catch(err){
+        showError('Could not fetch weather — ' + err.message);
+        descEl.textContent = '—';
+        tempEl.textContent = '—';
+        metaEl.innerHTML = '';
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    // init
+    btn.addEventListener('click', () => getWeather(cityInput.value));
+    cityInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') getWeather(cityInput.value); });
+
+    // load default for initial view
+    getWeather(cityInput.value || 'London');
+  </script>
+</body>
+</html>
